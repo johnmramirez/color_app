@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "../Includes/display_structs.h"
+#include "../Includes/display.h"
 
 #define DefGC(dpy) DefaultGC(dpy, DefaultScreen(dpy))
 
@@ -91,38 +92,6 @@ XFontStruct *getFont(Display *dpy, XrmDatabase db, char *name,
 	return font;
 }
 
-
-typedef struct exitInfo ExitInfo;
-typedef struct startInfo StartInfo;
-typedef struct stopInfo StopInfo;
-struct exitInfo {
-	Display *dpy;
-	XFontStruct *font;
-};
-struct startInfo {
-	Display *dpy;
-	XFontStruct *font;
-};
-struct stopInfo {
-	Display *dpy;
-	XFontStruct *font;
-};
-
-void exitButton(void *cbdata){
-	ExitInfo *ei = (ExitInfo*)cbdata;
-	XFreeFont(ei->dpy, ei->font);
-	XCloseDisplay(ei->dpy);
-	exit(0);
-}
-
-void startButton(void *cbdata){
-
-}
-
-void stopButton(void *cbdata){
-
-}
-
 void createButton(Display *dpy, Window parent, char *text, XFontStruct *font,
 		int x, int y, int width, int height,
 		unsigned long foreground, unsigned long background, unsigned long border,
@@ -162,11 +131,75 @@ void createButton(Display *dpy, Window parent, char *text, XFontStruct *font,
 	button->border = border;
 
 	XSelectInput(dpy, win,
-		ButtonPressMask|ButtonReleaseMask|StructureNotifyMask|ExposureMask
-			|LeaveWindowMask|EnterWindowMask);
+		ButtonPressMask|ButtonReleaseMask|StructureNotifyMask|ExposureMask);
 
 	XSaveContext(dpy, win, ctxt, (XPointer)button);
 	XMapWindow(dpy, win);
+}
+
+void createFileSelect(Display *dpy, Window win, XrmDatabase db, XContext ctxt, XFontStruct * font){
+	
+	Button *filewindow;
+
+	filewindow = calloc(sizeof(*filewindow), 1);
+	if (!filewindow){
+		fprintf(stderr, "unable to allocate any space, dieing\n");
+		exit(32);
+	}
+
+	filewindow->background = getColour(dpy,  db, "xtut9.background", "xtut9.BackGround", "Black");
+	filewindow->border = getColour(dpy,  db, "xtut9.border", "xtut9.Border", "White");
+	filewindow->foreground = getColour(dpy,  db, "xtut9.foreground", "xtut9.ForeGround", "White");
+
+	filewindow->width = 400;
+	filewindow->height = 100;
+
+	win = XCreateSimpleWindow(dpy, win, 0, 0, filewindow->width, filewindow->height,
+		2, filewindow->border, filewindow->background); /* borderwidth, border and background colour */
+	if (!win) {
+		fprintf(stderr, "unable to create a subwindow\n");
+		exit(31);
+	}
+	Xutf8SetWMProperties(dpy, win, "Select File", "xtut9", NULL, 0,
+		NULL, NULL, NULL);
+
+	FileInfo *fileInfo;
+	fileInfo = malloc(sizeof(*fileInfo));
+	fileInfo->dpy = dpy;
+	fileInfo->font = font;
+	createButton(dpy, win, "Read", font, /*display text font */
+		filewindow->width/2, filewindow->height, 80, (font->ascent+font->descent)*2,/*xywh*/
+			/* colours */
+		filewindow->foreground, filewindow->background, filewindow->border,
+		ctxt, fileButton, fileInfo);			/* context & callback info */
+
+	XSelectInput(dpy, win, StructureNotifyMask|ExposureMask);
+    XMapWindow(dpy, win);
+	XSaveContext(dpy, win, ctxt, (XPointer)filewindow);
+}
+
+void exitButton(void *cbdata){
+	ExitInfo *ei = (ExitInfo*)cbdata;
+	XFreeFont(ei->dpy, ei->font);
+	XCloseDisplay(ei->dpy);
+	exit(0);
+}
+
+void startButton(void *cbdata){
+
+}
+
+void stopButton(void *cbdata){
+
+}
+
+void selectButton(void *cbdata){
+	SelectInfo *si = (SelectInfo*)cbdata;
+	createFileSelect(si->dpy, DefaultRootWindow(si->dpy), si->db, si->ctxt, si->font);
+}
+
+void fileButton(void *cbdata){
+
 }
 
 XContext setup(Display * dpy, int argc, char ** argv){
@@ -221,6 +254,19 @@ XContext setup(Display * dpy, int argc, char ** argv){
 		GCForeground|GCLineWidth|GCLineStyle|GCFont,&values);
 
 
+	/* Button Start */
+	SelectInfo *selectInfo;
+	selectInfo = malloc(sizeof(*selectInfo));
+	selectInfo->dpy = dpy;
+	selectInfo->font = font;
+	selectInfo->ctxt = ctxt;
+	selectInfo->db = db;
+	createButton(dpy, win, "Select", font, /*display text font */
+		mainwindow->width/2-200, mainwindow->height - (font->ascent+font->descent)*2 - 4, 80, (font->ascent+font->descent)*2,/*xywh*/
+			/* colours */
+		mainwindow->foreground, mainwindow->background, mainwindow->border,
+		ctxt, selectButton, selectInfo);			/* context & callback info */
+
 	StartInfo *startInfo;
 	startInfo = malloc(sizeof(*startInfo));
 	startInfo->dpy = dpy;
@@ -241,7 +287,6 @@ XContext setup(Display * dpy, int argc, char ** argv){
 		mainwindow->foreground, mainwindow->background, mainwindow->border,
 		ctxt, stopButton, stopInfo);			/* context & callback info */
 
-
 	ExitInfo *exitInfo;
 	exitInfo = malloc(sizeof(*exitInfo));
 	exitInfo->dpy = dpy;
@@ -252,6 +297,7 @@ XContext setup(Display * dpy, int argc, char ** argv){
 		mainwindow->foreground, mainwindow->background, mainwindow->border,
 		ctxt, exitButton, exitInfo);			/* context & callback info */
 	
+	/* Button end */
 
 	/* tell the display server what kind of events we would like to see */
 	XSelectInput(dpy, win, StructureNotifyMask|ExposureMask);
@@ -263,7 +309,6 @@ XContext setup(Display * dpy, int argc, char ** argv){
 
 	return ctxt;
 }
-
 
 void buttonExpose(Button *button, XEvent *ev) {
 	int textx, texty, len;

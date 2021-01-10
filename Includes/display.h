@@ -16,11 +16,14 @@ XFontStruct *getFont(Display *, XrmDatabase, char *,
 void exitButton(void *);
 void startButton(void *);
 void stopButton(void *);
+void fileButton(void *);
+void selectButton(void *);
 void createButton(Display *, Window, char *, XFontStruct *,
 		int, int, int, int,
 		unsigned long, unsigned long, unsigned long,
 			XContext, Callback, void *);
 XContext setup(Display *, int, char **);
+void createFileSelect(Display *, Window, XrmDatabase, XContext, XFontStruct *);
 void buttonExpose(Button *, XEvent *);
 void buttonConfigure(Button *, XEvent *);
 void buttonEnter(Button *, XEvent *);

@@ -28,15 +28,7 @@ int main_loop(Display *dpy, XContext context){
 				buttonExpose(button, &ev);
 			break;
 
-		/* these three events will only be sent to the button */
-		// case EnterNotify:
-		// 	if (button)
-		// 		buttonEnter(button, &ev);
-		// 	break;
-		// case LeaveNotify:
-		// 	if (button)
-		// 		buttonLeave(button, &ev);
-		// 	break;
+		/* this event will only be sent to the button */
 		case ButtonRelease:
 			if (button && button->buttonRelease)
 				button->buttonRelease(button->cbdata);

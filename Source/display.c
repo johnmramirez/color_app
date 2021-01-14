@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "../Includes/display_structs.h"
+#include "../Includes/display.h"
 
 #define DefGC(dpy) DefaultGC(dpy, DefaultScreen(dpy))
 
@@ -91,38 +92,6 @@ XFontStruct *getFont(Display *dpy, XrmDatabase db, char *name,
 	return font;
 }
 
-
-typedef struct exitInfo ExitInfo;
-typedef struct startInfo StartInfo;
-typedef struct stopInfo StopInfo;
-struct exitInfo {
-	Display *dpy;
-	XFontStruct *font;
-};
-struct startInfo {
-	Display *dpy;
-	XFontStruct *font;
-};
-struct stopInfo {
-	Display *dpy;
-	XFontStruct *font;
-};
-
-void exitButton(void *cbdata){
-	ExitInfo *ei = (ExitInfo*)cbdata;
-	XFreeFont(ei->dpy, ei->font);
-	XCloseDisplay(ei->dpy);
-	exit(0);
-}
-
-void startButton(void *cbdata){
-
-}
-
-void stopButton(void *cbdata){
-
-}
-
 void createButton(Display *dpy, Window parent, char *text, XFontStruct *font,
 		int x, int y, int width, int height,
 		unsigned long foreground, unsigned long background, unsigned long border,
@@ -162,11 +131,57 @@ void createButton(Display *dpy, Window parent, char *text, XFontStruct *font,
 	button->border = border;
 
 	XSelectInput(dpy, win,
-		ButtonPressMask|ButtonReleaseMask|StructureNotifyMask|ExposureMask
-			|LeaveWindowMask|EnterWindowMask);
+		ButtonPressMask|ButtonReleaseMask|StructureNotifyMask|ExposureMask);
 
 	XSaveContext(dpy, win, ctxt, (XPointer)button);
 	XMapWindow(dpy, win);
+}
+
+void createFileSelect(Display *dpy, Window parent, XrmDatabase db, XContext ctxt, XFontStruct * font){
+	
+	Button *monoWindow;
+	Window win;
+
+	monoWindow = calloc(sizeof(*monoWindow), 1);
+	if (!monoWindow){
+		fprintf(stderr, "unable to allocate any space, dieing\n");
+		exit(32);
+	}
+
+	monoWindow->background = getColour(dpy,  db, "xtut9.background", "xtut9.BackGround", "Black");
+	monoWindow->border = getColour(dpy,  db, "xtut9.border", "xtut9.Border", "White");
+	monoWindow->foreground = getColour(dpy,  db, "xtut9.foreground", "xtut9.ForeGround", "White");
+
+	monoWindow->width = 400;
+	monoWindow->height = 100;
+
+	win = XCreateSimpleWindow(dpy, parent, 0, 0, monoWindow->width, monoWindow->height,
+		2, monoWindow->border, monoWindow->background); /* borderwidth, border and background colour */
+	if (!win) {
+		fprintf(stderr, "unable to create a subwindow\n");
+		exit(31);
+	}
+	Xutf8SetWMProperties(dpy, win, "Select File", "xtut9", NULL, 0,
+		NULL, NULL, NULL);
+
+	XSelectInput(dpy, win, StructureNotifyMask|ExposureMask);
+    XMapWindow(dpy, win);
+	XSaveContext(dpy, win, ctxt, (XPointer)monoWindow);
+}
+
+void exitButton(void *cbdata){
+	ExitInfo *ei = (ExitInfo*)cbdata;
+	XFreeFont(ei->dpy, ei->font);
+	XCloseDisplay(ei->dpy);
+	exit(0);
+}
+
+void startButton(void *cbdata){
+
+}
+
+void stopButton(void *cbdata){
+
 }
 
 XContext setup(Display * dpy, int argc, char ** argv){
@@ -221,6 +236,7 @@ XContext setup(Display * dpy, int argc, char ** argv){
 		GCForeground|GCLineWidth|GCLineStyle|GCFont,&values);
 
 
+	/* Button Start */
 	StartInfo *startInfo;
 	startInfo = malloc(sizeof(*startInfo));
 	startInfo->dpy = dpy;
@@ -241,7 +257,6 @@ XContext setup(Display * dpy, int argc, char ** argv){
 		mainwindow->foreground, mainwindow->background, mainwindow->border,
 		ctxt, stopButton, stopInfo);			/* context & callback info */
 
-
 	ExitInfo *exitInfo;
 	exitInfo = malloc(sizeof(*exitInfo));
 	exitInfo->dpy = dpy;
@@ -252,6 +267,7 @@ XContext setup(Display * dpy, int argc, char ** argv){
 		mainwindow->foreground, mainwindow->background, mainwindow->border,
 		ctxt, exitButton, exitInfo);			/* context & callback info */
 	
+	/* Button end */
 
 	/* tell the display server what kind of events we would like to see */
 	XSelectInput(dpy, win, StructureNotifyMask|ExposureMask);
@@ -263,7 +279,6 @@ XContext setup(Display * dpy, int argc, char ** argv){
 
 	return ctxt;
 }
-
 
 void buttonExpose(Button *button, XEvent *ev) {
 	int textx, texty, len;
@@ -284,23 +299,4 @@ void buttonConfigure(Button *button, XEvent *ev){
 		button->height = ev->xconfigure.height;
 		XClearWindow(ev->xany.display, ev->xany.window);
 	}
-}
-
-void buttonEnter(Button *button, XEvent *ev) {
-	XSetWindowAttributes attrs;
-	if(!button) return;
-	attrs.background_pixel = button->border;
-	attrs.border_pixel = button->background;
-	XChangeWindowAttributes(ev->xany.display, ev->xany.window,
-			CWBackPixel|CWBorderPixel, &attrs);
-	XClearArea(ev->xany.display, ev->xany.window, 0, 0, button->width, button->height, True);
-}
-void buttonLeave(Button *button, XEvent *ev) {
-	XSetWindowAttributes attrs;
-	if(!button) return;
-	attrs.background_pixel = button->background;
-	attrs.border_pixel = button->border;
-	XChangeWindowAttributes(ev->xany.display, ev->xany.window,
-			CWBackPixel|CWBorderPixel, &attrs);
-	XClearArea(ev->xany.display, ev->xany.window, 0, 0, button->width, button->height, True);
 }

@@ -137,7 +137,7 @@ void createButton(Display *dpy, Window parent, char *text, XFontStruct *font,
 	XMapWindow(dpy, win);
 }
 
-void createFileSelect(Display *dpy, Window parent, XrmDatabase db, XContext ctxt, XFontStruct * font){
+void createMonoFeed(Display *dpy, Window parent, XrmDatabase db, XContext ctxt, XFontStruct * font){
 	
 	Button *monoWindow;
 	Window win;
